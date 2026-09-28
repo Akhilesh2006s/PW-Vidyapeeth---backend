@@ -4,16 +4,18 @@ import { AppError } from '../../utils/AppError.js';
 import { mapDetectedLanguage } from './normalize.js';
 
 function listenQuery(language) {
-  const model = language === 'te' ? 'nova-2' : env.deepgram.model;
-  const spoken = language === 'en' || language === 'te' ? language : 'multi';
-  return new URLSearchParams({
-    model,
-    language: spoken,
+  const params = new URLSearchParams({
+    model: env.deepgram.model,
+    language: language === 'en' ? 'en' : 'te',
     smart_format: 'true',
     punctuate: 'true',
     diarize: 'true',
     utterances: 'true',
   });
+  for (const term of ['scholarship', 'hostel', 'instalment', 'fee', 'WhatsApp']) {
+    params.append('keyterm', term);
+  }
+  return params;
 }
 
 export async function transcribeWithDeepgram({ filePath, mimeType, language = 'mixed' }) {
@@ -58,7 +60,7 @@ export async function transcribeWithDeepgram({ filePath, mimeType, language = 'm
     detectedLanguage: String(detected || ''),
     segments,
     provider: 'deepgram',
-    model: language === 'te' ? 'nova-2' : env.deepgram.model,
+    model: env.deepgram.model,
     isPlaceholder: false,
     placeholderMessage: '',
   };
