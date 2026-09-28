@@ -8,6 +8,8 @@ import {
   FollowUp,
   Transcript,
 } from '../models/index.js';
+import { env } from '../config/env.js';
+import { transcribeWithDeepgram } from '../services/ai/deepgram.js';
 import { createAiProvider } from '../services/ai/index.js';
 
 /**
@@ -44,12 +46,18 @@ export async function runSessionProcessing(sessionId) {
     const provider = createAiProvider();
     let transcript = pasted;
     if (!transcript) {
-      const transcriptResult = await provider.transcribe({
-        filePath: audio.storagePath,
-        filename: audio.originalName,
-        mimeType: audio.mimeType,
-        language: session.language,
-      });
+      const transcriptResult = env.deepgram.apiKey
+        ? await transcribeWithDeepgram({
+            filePath: audio.storagePath,
+            mimeType: audio.mimeType,
+            language: session.language,
+          })
+        : await provider.transcribe({
+            filePath: audio.storagePath,
+            filename: audio.originalName,
+            mimeType: audio.mimeType,
+            language: session.language,
+          });
       transcript = await Transcript.findOneAndUpdate(
         { session: session._id },
         {
@@ -73,14 +81,16 @@ export async function runSessionProcessing(sessionId) {
       studentName: session.studentName,
       parentName: session.parentName,
     };
+    const timedTurns = Array.isArray(transcript.segments) ? transcript.segments.map((item) => ({ ...item.toObject?.() ?? item })) : [];
     const speakers = typeof provider.identifySpeakers === 'function'
       ? await provider.identifySpeakers({ transcript: transcript.text, context: speakerContext })
       : [];
     if (speakers.length) {
-      transcript.segments = speakers.map((turn) => ({
+      const keepTiming = timedTurns.length === speakers.length;
+      transcript.segments = speakers.map((turn, index) => ({
         speaker: turn.speaker,
-        startMs: 0,
-        endMs: 0,
+        startMs: keepTiming ? Number(timedTurns[index].startMs || 0) : 0,
+        endMs: keepTiming ? Number(timedTurns[index].endMs || 0) : 0,
         text: turn.text,
         language: transcript.language || session.language || 'mixed',
       }));

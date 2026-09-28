@@ -47,6 +47,10 @@ export const env = {
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   uploadDir: path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || 'uploads'),
   ai: resolveAiConfig(),
+  deepgram: {
+    apiKey: process.env.DEEPGRAM_API_KEY || '',
+    model: process.env.DEEPGRAM_MODEL || 'nova-3',
+  },
   seed: {
     counsellorEmail: process.env.SEED_COUNSELLOR_EMAIL || 'counsellor@physicswallah.local',
     counsellorPassword: process.env.SEED_COUNSELLOR_PASSWORD || 'PhysicsWallah#2026',

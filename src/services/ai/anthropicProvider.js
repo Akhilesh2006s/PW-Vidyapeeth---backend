@@ -22,7 +22,7 @@ export class AnthropicProvider {
 
   async transcribe() {
     throw new AppError(
-      'Claude analyses conversation text. Paste the transcript in the session, or use an audio transcription provider for recordings.',
+      'Set DEEPGRAM_API_KEY to transcribe a recording. You can also paste the conversation as text.',
       400,
     );
   }
