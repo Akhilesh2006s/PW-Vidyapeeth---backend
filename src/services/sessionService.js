@@ -49,10 +49,28 @@ export async function createSession(req, body) {
   if (!req.counsellor) throw new AppError('A counsellor profile is required to start a session', 403);
   const studentName = String(body.studentName || '').trim();
   const parentName = String(body.parentName || '').trim();
+  const parent = body.parentId ? await Parent.findById(body.parentId) : null;
+  if (body.parentId && !parent) throw new AppError('Parent not found', 404);
+  const student = body.studentId ? await Student.findById(body.studentId) : null;
+  if (body.studentId && !student) throw new AppError('Student not found', 404);
+  if (parent) {
+    const canUseParent = String(parent.createdBy) === String(req.counsellor._id)
+      || (parent.counsellors || []).some((id) => String(id) === String(req.counsellor._id));
+    if (!canUseParent) throw new AppError('Parent not found', 404);
+  }
+  if (student && String(student.counsellor) !== String(req.counsellor._id)) {
+    throw new AppError('Student not found', 404);
+  }
+  if (parent) {
+    await Parent.updateOne({ _id: parent._id }, { $addToSet: { counsellors: req.counsellor._id, ...(student ? { students: student._id } : {}) } });
+    if (student) await Student.updateOne({ _id: student._id }, { $addToSet: { parents: parent._id } });
+  }
   return CounsellingSession.create({
     counsellor: req.counsellor._id,
+    student: student?._id || null,
     studentName,
-    parentName,
+    parentName: parent?.fullName || parentName,
+    parents: parent ? [parent._id] : [],
     language: body.language || 'mixed',
     title: body.title || `Counselling · ${studentName}`,
     notes: body.notes || '',

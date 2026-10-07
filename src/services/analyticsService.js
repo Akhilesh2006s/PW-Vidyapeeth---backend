@@ -1,5 +1,6 @@
-import { Admission, AiAnalysis, CounsellingSession, FollowUp, Parent, Student } from '../models/index.js';
+import { Admission, AiAnalysis, CounsellingSession, Counsellor, FollowUp, Parent, Student } from '../models/index.js';
 import { aiConfigured } from '../config/env.js';
+import { calculateSessionSatisfaction } from './parentService.js';
 
 function countMap(rows) {
   return Object.fromEntries(rows.map((row) => [row._id || 'unknown', row.count]));
@@ -68,5 +69,73 @@ export async function overview(req) {
       placeholderAnalyses,
       realAnalyses,
     },
+  };
+}
+
+export async function counsellorPerformance(req) {
+  const counsellorFilter = req.user.role === 'admin' ? {} : { _id: req.counsellor._id };
+  const counsellors = await Counsellor.find(counsellorFilter).populate('user', 'name email');
+  const ids = counsellors.map((item) => item._id);
+  const [sessions, admissions, followUps] = await Promise.all([
+    CounsellingSession.find({ counsellor: { $in: ids } }).sort({ startedAt: -1 }),
+    Admission.find({ counsellor: { $in: ids } }),
+    FollowUp.find({ assignedTo: { $in: ids } }),
+  ]);
+  const analyses = await AiAnalysis.find({ session: { $in: sessions.map((item) => item._id) } });
+  const analysisBySession = new Map(analyses.map((item) => [String(item.session), item]));
+
+  const rows = counsellors.map((counsellor) => {
+    const id = String(counsellor._id);
+    const ownSessions = sessions.filter((item) => String(item.counsellor) === id);
+    const ownAdmissions = admissions.filter((item) => String(item.counsellor) === id);
+    const ownFollowUps = followUps.filter((item) => String(item.assignedTo) === id);
+    const ownAnalyses = ownSessions.map((item) => analysisBySession.get(String(item._id))).filter(Boolean);
+    const satisfactionScores = ownAnalyses
+      .map((analysis) => calculateSessionSatisfaction(analysis).score)
+      .filter((score) => score != null);
+    const coverage = ownAnalyses.reduce((sum, analysis) => sum + (analysis.coveredPoints || []).length, 0);
+    const missed = ownAnalyses.reduce((sum, analysis) => sum + (analysis.missedPoints || []).length, 0);
+    const coverageRate = coverage + missed ? Math.round((coverage / (coverage + missed)) * 100) : null;
+    const satisfactionScore = satisfactionScores.length
+      ? Math.round(satisfactionScores.reduce((sum, score) => sum + score, 0) / satisfactionScores.length)
+      : null;
+    const completedFollowUps = ownFollowUps.filter((item) => item.status === 'done').length;
+    const followUpRate = ownFollowUps.length ? Math.round((completedFollowUps / ownFollowUps.length) * 100) : null;
+    const enrolled = ownAdmissions.filter((item) => item.stage === 'enrolled').length;
+    const conversionRate = ownAdmissions.length ? Math.round((enrolled / ownAdmissions.length) * 100) : null;
+    const available = [satisfactionScore, coverageRate, followUpRate, conversionRate].filter((value) => value != null);
+    const performanceScore = available.length ? Math.round(available.reduce((sum, value) => sum + value, 0) / available.length) : null;
+    const strengths = [...new Set(ownAnalyses.flatMap((analysis) => analysis.counsellorStrengths || []))].slice(0, 3);
+    const improvements = [...new Set(ownAnalyses.flatMap((analysis) => analysis.counsellorImprovements || []))].slice(0, 3);
+    return {
+      counsellorId: id,
+      counsellorName: counsellor.user?.name || counsellor.employeeCode,
+      employeeCode: counsellor.employeeCode,
+      sessions: ownSessions.length,
+      completedSessions: ownSessions.filter((item) => item.status === 'completed').length,
+      satisfactionScore,
+      coverageRate,
+      followUpRate,
+      conversionRate,
+      enrollments: enrolled,
+      performanceScore,
+      strengths,
+      improvements,
+    };
+  }).sort((a, b) => (b.performanceScore ?? -1) - (a.performanceScore ?? -1));
+
+  const scoredRows = rows.filter((row) => row.performanceScore != null);
+  return {
+    scope: req.user.role === 'admin' ? 'team' : 'individual',
+    summary: {
+      counsellors: rows.length,
+      totalSessions: sessions.length,
+      completedSessions: sessions.filter((item) => item.status === 'completed').length,
+      enrollments: admissions.filter((item) => item.stage === 'enrolled').length,
+      teamPerformanceScore: scoredRows.length
+        ? Math.round(scoredRows.reduce((sum, row) => sum + row.performanceScore, 0) / scoredRows.length)
+        : null,
+    },
+    counsellors: rows,
   };
 }

@@ -6,6 +6,7 @@ import {
   createStudent,
   getAdmission,
   getParent,
+  getParentAnalysis,
   getStudent,
   listAdmissions,
   listCounsellors,
@@ -35,6 +36,7 @@ import {
 } from '../controllers/coverageController.js';
 import {
   analyticsOverview,
+  counsellorPerformance,
   createFollowUp,
   listFollowUps,
   updateFollowUp,
@@ -64,6 +66,7 @@ export const parentRouter = Router();
 parentRouter.get('/', ...listParents);
 parentRouter.post('/', ...createParent);
 parentRouter.get('/:id', ...getParent);
+parentRouter.get('/:id/analysis', ...getParentAnalysis);
 parentRouter.patch('/:id', ...updateParent);
 
 export const admissionRouter = Router();
@@ -92,6 +95,7 @@ followUpRouter.patch('/:id', ...updateFollowUp);
 
 export const analyticsRouter = Router();
 analyticsRouter.get('/overview', analyticsOverview);
+analyticsRouter.get('/counsellors', counsellorPerformance);
 
 export const coverageRouter = Router();
 coverageRouter.get('/', listPoints);

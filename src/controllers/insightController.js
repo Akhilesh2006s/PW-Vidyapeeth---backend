@@ -34,3 +34,8 @@ export const analyticsOverview = asyncHandler(async (req, res) => {
   const data = await analyticsService.overview(req);
   res.json({ data });
 });
+
+export const counsellorPerformance = asyncHandler(async (req, res) => {
+  const data = await analyticsService.counsellorPerformance(req);
+  res.json({ data });
+});

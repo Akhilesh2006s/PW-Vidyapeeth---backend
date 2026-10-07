@@ -137,6 +137,8 @@ export const createSessionSchema = z.object({
     language: language.optional(),
     title: z.string().trim().max(140).optional().default(''),
     notes: z.string().trim().max(2000).optional().default(''),
+    studentId: objectId.optional(),
+    parentId: objectId.optional(),
   }),
   params: z.object({}).passthrough(),
   query: z.object({}).passthrough(),

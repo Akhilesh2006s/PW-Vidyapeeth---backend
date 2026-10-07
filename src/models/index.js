@@ -66,9 +66,13 @@ const parentSchema = new mongoose.Schema(
     students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
     notes: { type: String, trim: true, default: '' },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Counsellor', required: true, index: true },
+    counsellors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Counsellor', index: true }],
   },
   { timestamps: true, collection: 'parents' },
 );
+
+parentSchema.index({ phone: 1 }, { sparse: true });
+parentSchema.index({ email: 1 }, { sparse: true });
 
 const admissionSchema = new mongoose.Schema(
   {

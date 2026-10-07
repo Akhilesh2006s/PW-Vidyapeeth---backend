@@ -44,6 +44,11 @@ export const getParent = [validate(idSchema), asyncHandler(async (req, res) => {
   res.json({ data });
 })];
 
+export const getParentAnalysis = [validate(idSchema), asyncHandler(async (req, res) => {
+  const data = await parentService.getParentAnalysis(req, req.validated.params.id);
+  res.json({ data });
+})];
+
 export const createParent = [validate(createParentSchema), asyncHandler(async (req, res) => {
   const data = await parentService.createParent(req, req.validated.body);
   res.status(201).json({ data });
