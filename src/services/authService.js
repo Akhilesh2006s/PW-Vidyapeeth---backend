@@ -11,11 +11,12 @@ function publicUser(user) {
     role: user.role,
     phone: user.phone || '',
     preferredLanguage: user.preferredLanguage,
+    mustChangePassword: Boolean(user.mustChangePassword),
     createdAt: user.createdAt,
   };
 }
 
-export async function registerAccount(input) {
+async function createCounsellorUser(input, mustChangePassword) {
   const email = input.email.toLowerCase();
   const existing = await User.findOne({ email });
   if (existing) throw new AppError('An account with this email already exists', 409);
@@ -27,14 +28,36 @@ export async function registerAccount(input) {
     role: 'counsellor',
     phone: input.phone || '',
     preferredLanguage: input.preferredLanguage || 'en',
+    mustChangePassword,
   });
-  const counsellor = await Counsellor.create({
-    user: user._id,
-    employeeCode: `MC-${String(user._id).slice(-6).toUpperCase()}`,
-    languages: ['en', 'te'],
-    specializations: ['admissions'],
-  });
+  try {
+    const counsellor = await Counsellor.create({
+      user: user._id,
+      employeeCode: `PW-${String(user._id).slice(-6).toUpperCase()}`,
+      jobTitle: input.jobTitle || 'Counsellor',
+      languages: ['en', 'te'],
+      specializations: ['admissions'],
+    });
+    return { user, counsellor };
+  } catch (error) {
+    await User.deleteOne({ _id: user._id });
+    throw error;
+  }
+}
+
+export async function registerAccount(input) {
+  const { user, counsellor } = await createCounsellorUser(input, false);
   return { token: signToken(user), user: publicUser(user), counsellor };
+}
+
+export async function createStaffAccount(input) {
+  const { user, counsellor } = await createCounsellorUser(input, true);
+  return {
+    ...publicUser(user),
+    employeeCode: counsellor.employeeCode,
+    jobTitle: counsellor.jobTitle,
+    active: counsellor.active,
+  };
 }
 
 export async function loginAccount({ email, password }) {
@@ -51,4 +74,32 @@ export async function currentAccount(userId) {
   if (!user) throw new AppError('Account not found', 401);
   const counsellor = user.role === 'counsellor' ? await Counsellor.findOne({ user: user._id }) : null;
   return { user: publicUser(user), counsellor };
+}
+
+export async function changePassword(userId, { currentPassword, newPassword }) {
+  const user = await User.findById(userId).select('+passwordHash');
+  if (!user) throw new AppError('Account not found', 404);
+  const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!matches) throw new AppError('Current password is incorrect', 400);
+  const reused = await bcrypt.compare(newPassword, user.passwordHash);
+  if (reused) throw new AppError('Choose a password different from your current password', 400);
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  user.mustChangePassword = false;
+  await user.save();
+  return publicUser(user);
+}
+
+export async function listStaffAccounts() {
+  const users = await User.find().sort({ createdAt: -1 });
+  const counsellors = await Counsellor.find({ user: { $in: users.map((user) => user._id) } });
+  const byUser = new Map(counsellors.map((item) => [String(item.user), item]));
+  return users.map((user) => {
+    const counsellor = byUser.get(String(user._id));
+    return {
+      ...publicUser(user),
+      employeeCode: counsellor?.employeeCode || '',
+      jobTitle: user.role === 'admin' ? 'Super Admin' : counsellor?.jobTitle || 'Counsellor',
+      active: counsellor?.active ?? true,
+    };
+  });
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, me, register, listUsers } from '../controllers/authController.js';
+import { changePassword, createStaffAccount, login, me, register, listUsers } from '../controllers/authController.js';
 import {
   createAdmission,
   createParent,
@@ -48,9 +48,11 @@ publicAuthRouter.post('/login', ...login);
 
 export const privateAuthRouter = Router();
 privateAuthRouter.get('/me', me);
+privateAuthRouter.patch('/password', ...changePassword);
 
 export const userRouter = Router();
 userRouter.get('/', ...listUsers);
+userRouter.post('/', ...createStaffAccount);
 
 export const counsellorRouter = Router();
 counsellorRouter.get('/', listCounsellors);

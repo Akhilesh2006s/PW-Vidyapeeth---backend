@@ -44,6 +44,7 @@ export const env = {
   mongoUri,
   jwtSecret: process.env.JWT_SECRET || '',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  allowPublicRegistration: process.env.ALLOW_PUBLIC_REGISTRATION === 'true',
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   uploadDir: path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || 'uploads'),
   ai: resolveAiConfig(),

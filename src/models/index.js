@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['admin', 'counsellor'], default: 'counsellor' },
     phone: { type: String, trim: true, default: '' },
     preferredLanguage: { type: String, enum: uiLanguageEnum, default: 'en' },
+    mustChangePassword: { type: Boolean, default: false },
   },
   { timestamps: true, collection: 'users' },
 );
@@ -33,6 +34,7 @@ const counsellorSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     employeeCode: { type: String, required: true, unique: true, trim: true },
+    jobTitle: { type: String, trim: true, default: 'Counsellor' },
     specializations: { type: [String], default: ['admissions'] },
     languages: { type: [{ type: String, enum: ['en', 'te'] }], default: ['en', 'te'] },
     active: { type: Boolean, default: true },

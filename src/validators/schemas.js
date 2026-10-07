@@ -26,6 +26,30 @@ export const loginSchema = z.object({
   query: z.object({}).passthrough(),
 });
 
+const password = z.string().min(10).max(72);
+
+export const createStaffAccountSchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(2).max(80),
+    email: z.string().trim().email(),
+    password,
+    jobTitle: z.string().trim().min(2).max(80),
+    phone: z.string().trim().max(20).optional().default(''),
+    preferredLanguage: z.enum(['en', 'te']).optional().default('en'),
+  }),
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+});
+
+export const changePasswordSchema = z.object({
+  body: z.object({
+    currentPassword: z.string().min(1).max(72),
+    newPassword: password,
+  }),
+  params: z.object({}).passthrough(),
+  query: z.object({}).passthrough(),
+});
+
 const listQuery = z.object({
   q: z.string().trim().max(80).optional(),
   language: language.optional(),
